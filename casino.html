@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>НОРИН Казино</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a0033, #330066);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+            border: 2px solid #ff00ff;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+        }
+
+        #balance {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .roulette {
+            width: 300px;
+            height: 300px;
+            background: url('https://i.imgur.com/5zKXz8M.png') no-repeat center center;
+            background-size: cover;
+            border-radius: 50%;
+            border: 5px solid #ff00ff;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.7);
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .roulette::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: #ff00ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #ff00ff;
+        }
+
+        .bet-options {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .bet-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            color: #fff;
+            background: #ff00ff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px #ff00ff;
+        }
+
+        .bet-button:hover {
+            background: #cc00cc;
+            box-shadow: 0 0 20px #ff00ff;
+        }
+
+        .bet-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .eye {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50px;
+            height: 50px;
+            background: url('https://i.imgur.com/eye-of-morgiza.png') no-repeat center center;
+            background-size: cover;
+            animation: blink 5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 90% { opacity: 1; }
+            95% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .error-message {
+            font-size: 1.5em;
+            text-align: center;
+            text-shadow: 0 0 10px #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Разворачиваем приложение на весь экран
+
+        // Проверяем, запущено ли приложение через Telegram
+        if (!tg.initDataUnsafe || !tg.initDataUnsafe.user) {
+            document.getElementById('app').innerHTML = `
+                <div class="error-message">
+                    ⚠️ Доступ запрещён!<br>
+                    Откройте это приложение через Telegram.
+                </div>
+            `;
+            document.body.style.background = '#1a0033';
+            throw new Error('Доступ запрещён: приложение не запущено через Telegram.');
+        }
+
+        // Получаем параметры из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('user_id') || 'unknown';
+        const balance = urlParams.get('balance') || '0';
+
+        // Отображаем содержимое приложения
+        document.getElementById('app').innerHTML = `
+            <div class="container">
+                <div class="eye"></div>
+                <h1>НОРИН Казино 🎰</h1>
+                <div id="balance">Баланс: $<span id="balance-value">${balance}</span></div>
+                <div class="roulette" id="roulette"></div>
+                <div class="bet-options">
+                    <button class="bet-button" onclick="placeBet(1)">$1</button>
+                    <button class="bet-button" onclick="placeBet(5)">$5</button>
+                    <button class="bet-button" onclick="placeBet(10)">$10</button>
+                </div>
+                <div class="result" id="result"></div>
+            </div>
+        `;
+
+        let isSpinning = false;
+
+        function placeBet(bet) {
+            if (isSpinning) return;
+
+            // Проверяем, достаточно ли средств
+            if (parseFloat(balance) < bet) {
+                document.getElementById('result').innerText = '💸 Недостаточно средств!';
+                return;
+            }
+
+            // Отключаем кнопки во время вращения
+            document.querySelectorAll('.bet-button').forEach(button => button.disabled = true);
+            isSpinning = true;
+            document.getElementById('result').innerText = 'Рулетка крутится... 🎲';
+
+            // Анимация вращения рулетки
+            anime({
+                targets: '#roulette',
+                rotate: '1080deg', // 3 полных оборота
+                duration: 3000,
+                easing: 'easeOutQuad',
+                complete: () => {
+                    // Отправляем данные о ставке и user_id в бот
+                    tg.sendData(JSON.stringify({ user_id: userId, bet: bet }));
+                    isSpinning = false;
+                    document.querySelectorAll('.bet-button').forEach(button => button.disabled = false);
+                    document.getElementById('result').innerText = 'Ожидаем результат...';
+                }
+            });
+        }
+
+        // Обработчик закрытия Mini App
+        tg.onEvent('mainButtonClicked', () => {
+            tg.close();
+        });
+
+        // Показываем главную кнопку для закрытия
+        tg.MainButton.setText('Закрыть').show();
+    </script>
+</body>
+</html>
